@@ -1,0 +1,116 @@
+<HTML>
+<HEAD>
+</HEAD>
+<BODY>
+	<div>
+		<canvas id="mainCanvas" width="512", height="512"></canvas> <!-- Note, we're upscaling canvas by 4x. -->
+	</div>
+	</div>
+		<button id="newPatch">Get Patch</button>
+	</div>
+	
+	<script type="text/javascript">
+	(function() {
+		var httpRequest;
+		var canvasElement = document.getElementById("mainCanvas");
+		var ctx = canvasElement.getContext('2d');
+		var img = null;
+		var xOffset = 0;
+		var yOffset = 0;
+		var imgName = "";
+		var newPatchButton = document.getElementById("newPatch");
+		newPatchButton.onclick = function() { makeRequest('get_work', 'GET', null, updateData, defaultErrorPopup); };
+		canvasElement.onmouseup = function(evt) {
+			var coords = canvasElement.relMouseCoords(event);
+			ctx.strokeStyle = "rgba(0,255,0,1.0)";
+			ctx.strokeRect(coords.x-25, coords.y-25, 50, 50);
+			pushData(img.width*(coords.x/canvasElement.width), img.height*(coords.y/canvasElement.height));
+		}
+
+		function makeRequest(url, postMethod, toSend, onSuccess, onError) {
+			if (window.XMLHttpRequest) {
+				httpRequest = new XMLHttpRequest();
+			} else if (window.ActiveXObject) {
+				try {
+					httpRequest = new ActiveXObject("Msxml2.XMLHTTP");
+				} 
+				catch (e) {
+					try {
+						httpRequest = new ActiveXObject("Microsoft.XMLHTTP");
+					} 
+					catch (e) {}
+				}
+			}
+
+			if (!httpRequest) {
+				alert('Unable to instance httpRequest object.');
+				return false;
+			}
+			
+			httpRequest.onreadystatechange = function() {
+				if (httpRequest.readyState === 4) {
+					if (httpRequest.status === 200) {
+						if(onSuccess) { onSuccess(httpRequest.responseText) };
+					} else {
+						if(onError) { onError() };
+					}
+				}
+			};
+			httpRequest.open(postMethod, url);
+			if(toSend != null) {
+				httpRequest.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+				httpRequest.send("json=" + encodeURIComponent(JSON.stringify(toSend)));
+			} else {
+				httpRequest.send();
+			}
+			return true;
+		}
+		
+		function defaultErrorPopup() {
+			alert("There was a problem reading data from the server.");
+		}
+		
+		function updateData(responseText) {
+			json = JSON.parse(responseText);
+			xOffset = json['offset_x'];
+			yOffset = json['offset_y'];
+			imgName = json['filename'];
+			
+			// Redraw the image
+			img = new Image;
+			img.onload = function () {
+				ctx.drawImage(this, 0, 0, canvasElement.width, canvasElement.height);
+			}
+			img.src = "data:image/png;base64," + json['data'];
+		}
+		
+		function pushData(x, y) {
+			// TODO: We should encapsulate this better and make it depend less on the globals.
+			makeRequest('submit_result', 'POST', {"filename":imgName, 'x_offset':xOffset, 'y_offset':yOffset, 'x':x, 'y':y}, null, null);
+		}
+		
+		// From O'Reilly's method
+		function relMouseCoords(event){
+			var totalOffsetX = 0;
+			var totalOffsetY = 0;
+			var canvasX = 0;
+			var canvasY = 0;
+			var currentElement = this;
+
+			do{
+				totalOffsetX += currentElement.offsetLeft - currentElement.scrollLeft;
+				totalOffsetY += currentElement.offsetTop - currentElement.scrollTop;
+			} while(currentElement = currentElement.offsetParent);
+
+			canvasX = event.pageX - totalOffsetX;
+			canvasY = event.pageY - totalOffsetY;
+
+			return {x:canvasX, y:canvasY}
+		}
+		HTMLCanvasElement.prototype.relMouseCoords = relMouseCoords;
+		
+		// coords = canvas.relMoueCoords(event) -> coords.x
+		
+	})();
+	</script>
+</BODY>
