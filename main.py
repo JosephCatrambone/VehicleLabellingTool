@@ -46,15 +46,19 @@ def submit_result():
 	data = json.loads(request.form['json']);
 	db = get_db();
 	cursor = db.cursor();
-	cursor.execute('INSERT INTO vehicles (image, x, y) VALUES (?, ?, ?)', (data['filename'], data['x_offset']+data['x'], data['y_offset']+data['y']));
+	# c.executemany('INSERT INTO vehicles (image, x, y) VALUES (?,?,?)', data)
+	for point in data['points']:
+		cursor.execute('INSERT INTO vehicles (image, x, y, x_forward, y_forward) VALUES (?, ?, ?, ?, ?)', (data['filename'], data['x_offset']+point['transform']['x'], data['y_offset']+point['transform']['y'], data['x_offset']+point['forward']['x'], data['y_offset']+point['forward']['y']));
 	db.commit();
 	cursor.close();
 	return Response(json.dumps({'status':'okay'}), mimetype="application/json");
 	
 # DB Access and Init Functions	
 def init_db():
+	connection = sqlite3.connect(DB_NAME);
+	connection.row_factory = sqlite3.Row;
 	c = connection.cursor();
-	c.execute("CREATE TABLE vehicles (id INTEGER PRIMARY KEY, image TEXT, x NUMERIC, y NUMERIC, direction NUMERIC, submitter TEXT)");
+	c.execute("CREATE TABLE vehicles (id INTEGER PRIMARY KEY, image TEXT, x NUMERIC, y NUMERIC, x_forward NUMERIC, y_forward NUMERIC, submitter TEXT)");
 	# db = get_db();
 	# with app.open_resource('schema.sql', more='r') as f:
 	# db.cursor().executescript(f.read());
@@ -82,4 +86,9 @@ def encode_img_as_base64_png(img):
 	return base64.b64encode(contents);
 
 if __name__ == "__main__":
+	try:
+		init_db();
+		print("Created database file {}".format(DB_NAME));
+	except sqlite3.OperationalError as oe:
+		pass
 	app.run(debug=True);
