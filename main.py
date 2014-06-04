@@ -33,12 +33,18 @@ def get_work():
 	#if img_filename not in g.images: # Have we loaded this picture already?
 	#	g.images[img_filename] = Image.open(img_filename);
 	#	img_data = g.images[img_filename];
+	db = get_db();
+	c = db.cursor();
 	img_filename = choice(glob(sys.argv[1]));
 	img_data = Image.open(img_filename);
 	x = randint(PATCH_SIZE[0], img_data.size[0]-PATCH_SIZE[0]);
 	y = randint(PATCH_SIZE[1], img_data.size[1]-PATCH_SIZE[1]);
 	crop_data = img_data.crop(box=(x, y, x+PATCH_SIZE[0], y+PATCH_SIZE[1]));
-	content = {'filename':img_filename, 'offset_x':x, 'offset_y':y, 'data':encode_img_as_base64_png(crop_data)};
+	points = list();
+	for entry in c.execute("SELECT x, y, x_forward, y_forward FROM vehicles WHERE x > ? AND y > ? AND x < ? AND y < ? AND image=?", (x-PATCH_SIZE[0], y-PATCH_SIZE[1], x+PATCH_SIZE[0], y+PATCH_SIZE[1], img_filename)):
+		points.append({'x':entry[0], 'y':entry[1], 'x_forward':entry[2], 'y_forward':entry[3]});
+	content = {'filename':img_filename, 'offset_x':x, 'offset_y':y, 'data':encode_img_as_base64_png(crop_data), 'points':points};
+	c.close();
 	return Response(json.dumps(content), mimetype="application/json");
 
 @app.route("/submit_result", methods=['POST'])
@@ -91,4 +97,4 @@ if __name__ == "__main__":
 		print("Created database file {}".format(DB_NAME));
 	except sqlite3.OperationalError as oe:
 		pass
-	app.run(debug=True);
+	app.run(debug=True, host='0.0.0.0', port=5000);
