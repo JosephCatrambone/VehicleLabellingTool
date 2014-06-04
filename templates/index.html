@@ -124,6 +124,7 @@
 			xOffset = json['offset_x'];
 			yOffset = json['offset_y'];
 			imgName = json['filename'];
+			pointList = json['points'];
 			
 			// Redraw the image
 			img = new Image;
@@ -131,6 +132,8 @@
 				ctx.drawImage(this, 0, 0, canvasElement.width, canvasElement.height);
 			}
 			img.src = "data:image/png;base64," + json['data'];
+
+			redraw();
 		}
 		
 		function pushData() {
