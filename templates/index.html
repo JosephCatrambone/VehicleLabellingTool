@@ -40,12 +40,14 @@
 		canvasElement.onmouseup = function(evt) {
 			var coord = canvasElement.relMouseCoords(event);
 			if(editorMode == "SELECT") {
+				var mouseX = coord.x/canvasElement.width;
+				var mouseY = coord.y/canvasElement.height;
 				currentPoint = -1;
 				var nearestPoint = -1;
 				var nearestDistance = 10000000000;
 				for(var i=0; i < pointList.length; i++) {
-					var dx = coord.x-pointList[i].transform.x;
-					var dy = coord.y-pointList[i].transform.y;
+					var dx = mouseX-pointList[i].transform.x;
+					var dy = mouseY-pointList[i].transform.y;
 					var dist = dx*dx+dy*dy;
 					if(dist < nearestDistance) {
 						nearestPoint = i;
@@ -56,23 +58,19 @@
 					currentPoint = nearestPoint;
 				}
 			} else if(editorMode == "CREATE") {
-				var newPoint = {'transform':{'x':coord.x, 'y':coord.y}, 'forward':{'x':coord.x+1, 'y':coord.y+1}};
+				var newPoint = {'transform':{'x':coord.x/canvasElement.width, 'y':coord.y/canvasElement.height}, 'forward':{'x':(coord.x+1)/canvasElement.width, 'y':(coord.y+1)/canvasElement.height}};
 				pointList.push(newPoint);
 				currentPoint = pointList.length-1;
 			} else if(editorMode == "MOVE") {
 				if(currentPoint == -1) { return; }
 				var pt = pointList[currentPoint];
-				var deltaXForward = coord.x - pt.transform.x;
-				var deltaYForward = coord.y - pt.transform.y;
-				pt.transform.x = coord.x;
-				pt.transform.y = coord.y;
-				pt.forward.x += deltaXForward;
-				pt.forward.y += deltaYForward;
+				pt.transform.x = coord.x/canvasElement.width;
+				pt.transform.y = coord.y/canvasElement.height;
 			} else if(editorMode == "FORWARD") {
 				if(currentPoint == -1) { return; }
 				var pt = pointList[currentPoint];
-				pt.forward.x = coord.x;
-				pt.forward.y = coord.y;
+				pt.forward.x = coord.x/canvasElement.width;
+				pt.forward.y = coord.y/canvasElement.height;
 			}
 			//pushData(img.width*(coords.x/canvasElement.width), img.height*(coords.y/canvasElement.height));
 			redraw();
@@ -159,10 +157,10 @@
 				} else {
 					ctx.strokeStyle = UNSELECTED_COLOR; // Perhaps slightly inefficient to re-set stroke style every time.  We could just draw only the selected point over top of itself.
 				}
-				ctx.strokeRect(pointList[i].transform.x-RECT_SIZE, pointList[i].transform.y-RECT_SIZE, 2*RECT_SIZE, 2*RECT_SIZE);
+				ctx.strokeRect((pointList[i].transform.x*canvasElement.width)-RECT_SIZE, (pointList[i].transform.y*canvasElement.height)-RECT_SIZE, 2*RECT_SIZE, 2*RECT_SIZE);
 				ctx.beginPath();
-				ctx.moveTo(pointList[i].transform.x, pointList[i].transform.y);
-				ctx.lineTo(pointList[i].forward.x, pointList[i].forward.y);
+				ctx.moveTo(pointList[i].transform.x*canvasElement.width, pointList[i].transform.y*canvasElement.height);
+				ctx.lineTo(pointList[i].forward.x*canvasElement.width, pointList[i].forward.y*canvasElement.height);
 				ctx.stroke();
 			}
 		}

@@ -37,12 +37,14 @@ def get_work():
 	c = db.cursor();
 	img_filename = choice(glob(sys.argv[1]));
 	img_data = Image.open(img_filename);
-	x = randint(PATCH_SIZE[0], img_data.size[0]-PATCH_SIZE[0]);
-	y = randint(PATCH_SIZE[1], img_data.size[1]-PATCH_SIZE[1]);
+	x = randint(0, img_data.size[0]-PATCH_SIZE[0]);
+	y = randint(0, img_data.size[1]-PATCH_SIZE[1]);
 	crop_data = img_data.crop(box=(x, y, x+PATCH_SIZE[0], y+PATCH_SIZE[1]));
 	points = list();
-	for entry in c.execute("SELECT x, y, x_forward, y_forward FROM vehicles WHERE x > ? AND y > ? AND x < ? AND y < ? AND image=?", (x-PATCH_SIZE[0], y-PATCH_SIZE[1], x+PATCH_SIZE[0], y+PATCH_SIZE[1], img_filename)):
-		points.append({'x':entry[0], 'y':entry[1], 'x_forward':entry[2], 'y_forward':entry[3]});
+	for entry in c.execute("SELECT x, y, x_forward, y_forward FROM vehicles WHERE x > ? AND y > ? AND x < ? AND y < ? AND image=?", (x, y, x+PATCH_SIZE[0], y+PATCH_SIZE[1], img_filename)):
+		transform = {'x': (entry[0]-x)/PATCH_SIZE[0], 'y': (entry[1]-y)/PATCH_SIZE[1]};
+		forward = {'x': (entry[2]-x)/PATCH_SIZE[0], 'y': (entry[3]-y)/PATCH_SIZE[1]};
+		points.append({'transform':transform, 'forward':forward});
 	content = {'filename':img_filename, 'offset_x':x, 'offset_y':y, 'data':encode_img_as_base64_png(crop_data), 'points':points};
 	c.close();
 	return Response(json.dumps(content), mimetype="application/json");
@@ -54,7 +56,13 @@ def submit_result():
 	cursor = db.cursor();
 	# c.executemany('INSERT INTO vehicles (image, x, y) VALUES (?,?,?)', data)
 	for point in data['points']:
-		cursor.execute('INSERT INTO vehicles (image, x, y, x_forward, y_forward) VALUES (?, ?, ?, ?, ?)', (data['filename'], data['x_offset']+point['transform']['x'], data['y_offset']+point['transform']['y'], data['x_offset']+point['forward']['x'], data['y_offset']+point['forward']['y']));
+		cursor.execute('INSERT INTO vehicles (image, x, y, x_forward, y_forward) VALUES (?, ?, ?, ?, ?)', 
+			(data['filename'], 
+			data['x_offset']+(PATCH_SIZE[0]*point['transform']['x']), 
+			data['y_offset']+(PATCH_SIZE[1]*point['transform']['y']), 
+			data['x_offset']+(PATCH_SIZE[0]*point['forward']['x']), 
+			data['y_offset']+(PATCH_SIZE[1]*point['forward']['y']),)
+		);
 	db.commit();
 	cursor.close();
 	return Response(json.dumps({'status':'okay'}), mimetype="application/json");
