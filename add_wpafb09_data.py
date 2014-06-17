@@ -38,10 +38,20 @@ if __name__=="__main__":
 	cursor.execute("CREATE TABLE regions (id INTEGER PRIMARY KEY, image TEXT, x NUMERIC, y NUMERIC, width NUMERIC, height NUMERIC, visits NUMERIC)");
 	for image_name in image_filenames:
 		img = Image.open(image_name);
+		number_of_channels = len(img.getbands());
 		for y in range(0, img.size[1]):
 			for x in range(0, img.size[0]):
+				# Make sure there's interesting information in this patch.
+				extrema = img.getextrema();
+				if number_of_channels == 1:
+					if extrema[0] == extrema[1]:
+						continue;
+				elif number_of_channels == 3:
+					if extrema[0][0] == extrema[0][1] and extrema[1][0] == extrema[1][1] and extrema[2][0] == extrema[2][1]:
+						continue;
+				# This patch is interesting.  Add it.	
 				cursor.execute('INSERT INTO regions (image, x, y, width, height, visits) VALUES (?, ?, ?, ?, ?, ?)', (image_name, x, y, REGION_SIZE, REGION_SIZE, 0));
-	db.connit();
+	db.commit();
 
 	# Wrap up
         cursor.close();
