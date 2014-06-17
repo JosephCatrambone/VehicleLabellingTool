@@ -25,6 +25,5 @@ Windows
 TODO
 ===
 - Undo + Delete Function
-- Bulk-add (Switch between create/normal every click.)
 - Add user credentials to server to see who is contributing.
 - Fix bug with scaled canvas.  Canvas is displaying at 4x and is reporting back positions at that scale.  Perhaps the full bounding box should be sent to client and client should send back a pair of numbers in [0,1].

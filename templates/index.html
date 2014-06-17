@@ -11,6 +11,7 @@
 		<button id="createTool">Create Tool</button>
 		<button id="moveTool">Move Tool</button>
 		<button id="forwardTool">Forward Tool</button>
+		<input id="placeMultiple" value="placeMultiple" type="checkbox">Place Multiple <!-- If checked, will switch between place and forward as each operation is completed. -->
 	</div>
 	
 	<script type="text/javascript">
@@ -61,6 +62,10 @@
 				var newPoint = {'transform':{'x':coord.x/canvasElement.width, 'y':coord.y/canvasElement.height}, 'forward':{'x':(coord.x+1)/canvasElement.width, 'y':(coord.y+1)/canvasElement.height}};
 				pointList.push(newPoint);
 				currentPoint = pointList.length-1;
+				
+				if(document.getElementById("placeMultiple")) {
+					editorMode = "FORWARD";
+				}
 			} else if(editorMode == "MOVE") {
 				if(currentPoint == -1) { return; }
 				var pt = pointList[currentPoint];
@@ -71,6 +76,10 @@
 				var pt = pointList[currentPoint];
 				pt.forward.x = coord.x/canvasElement.width;
 				pt.forward.y = coord.y/canvasElement.height;
+				
+				if(document.getElementById("placeMultiple")) {
+					editorMode = "CREATE";
+				}
 			}
 			//pushData(img.width*(coords.x/canvasElement.width), img.height*(coords.y/canvasElement.height));
 			redraw();
