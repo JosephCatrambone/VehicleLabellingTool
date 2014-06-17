@@ -26,4 +26,6 @@ TODO
 ===
 - Undo + Delete Function
 - Add user credentials to server to see who is contributing.
-- Fix bug with scaled canvas.  Canvas is displaying at 4x and is reporting back positions at that scale.  Perhaps the full bounding box should be sent to client and client should send back a pair of numbers in [0,1].
+- Get only sections which are unvisited.
+- Fix bug where a new point/forward is created instead of an old one being created.
+- Make the user interface more intuitive.  'Add point' should add one to the center, then clicking and dragging should behave as expected.
