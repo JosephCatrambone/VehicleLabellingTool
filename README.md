@@ -6,14 +6,21 @@ A tool to serve lots of users with an interface to label positive examples in la
 Getting Started
 ===
 
+OSX/Linux
 ```bash
-$ virtualenv env
+$ python -m virtualenv env
 $ . ./env/bin/activate
 $ pip install -r requirements.txt
 $ python main.py my/images/folder/*.png
 ```
 
-Note: on Windows . ./env/bin/activate might have to be swapped for env\Scripts\activate.bat
+Windows
+```
+> python -m virtualenv env
+> env\Scripts\activate
+> pip install -r requirements.txt
+> python main.py path\to\my\images\*.png
+```
 
 TODO
 ===
