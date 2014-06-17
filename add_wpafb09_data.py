@@ -3,6 +3,7 @@ import sys, os
 import sqlite3
 import csv
 from datetime import datetime
+from PIL import Image
 
 # WPAFB09 data is in the form x with 'TIME' in the form 21-OCT-09 08.25.17.087000000 PM
 # The actual frame times are in the form 20091021202517-01000101-VIS.ntf.r1.img0_jpg8m.raw.jpg
@@ -12,9 +13,13 @@ from datetime import datetime
 # 1,39.771141447642805,-84.09588282166273,9476,7187,21-OCT-09 08.25.17.087000000 PM,100,M
 
 if __name__=="__main__":
+	# Create the database
 	csv_file = sys.argv[1];
 	db = sqlite3.connect(sys.argv[2]);
 	db.row_factory = sqlite3.Row;
+
+	# Insert all vehicles
+	image_filenames = set();
 	cursor = db.cursor();
 	cursor.execute("CREATE TABLE vehicles (id INTEGER PRIMARY KEY, image TEXT, x NUMERIC, y NUMERIC, x_forward NUMERIC, y_forward NUMERIC, submitter TEXT)");
 	fin = open(csv_file, 'r');
@@ -23,7 +28,20 @@ if __name__=="__main__":
 		timestamp = datetime.strptime(row['TIME'], "%d-%b-%y %I.%M.%S.%f000 %p");
 		frame_number = row['FRAME_NUMBER'];
 		image_file = "{0}-01000{1:03d}-VIS.ntf.r1.img0_jpg8m.raw.jpg".format(timestamp.strftime('%Y%m%d%H%M%S'), int(frame_number));
-		cursor.execute('INSERT INTO vehicles (image, x, y) VALUES (?, ?, ?)', (image_file, row['X'], row['Y']));
+		image_filenames.add(image_file);
+		cursor.execute('INSERT INTO vehicles (image, x, y, x_forward, y_forward) VALUES (?, ?, ?)', (image_file, row['X'], row['Y'], row['X'], row['Y']));
 		print("Inserted ({}, {}, {}) into vehicles.".format(image_file, row['X'], row['Y']));
         db.commit();
+
+	# Create the regions of interest
+	REGION_SIZE = 128;
+	cursor.execute("CREATE TABLE regions (id INTEGER PRIMARY KEY, image TEXT, x NUMERIC, y NUMERIC, width NUMERIC, height NUMERIC, visits NUMERIC)");
+	for image_name in image_filenames:
+		img = Image.open(image_name);
+		for y in range(0, img.size[1]):
+			for x in range(0, img.size[0]):
+				cursor.execute('INSERT INTO regions (image, x, y, width, height, visits) VALUES (?, ?, ?, ?, ?, ?)', (image_name, x, y, REGION_SIZE, REGION_SIZE, 0));
+	db.connit();
+
+	# Wrap up
         cursor.close();
