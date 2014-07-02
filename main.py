@@ -12,6 +12,7 @@ from flask import Flask, request, g, render_template, Response
 
 # Globals
 app = Flask(__name__);
+BASE_PATH = sys.argv[1];
 PATCH_SIZE = (128,128);
 DB_NAME = 'vehicles.db';
 CONSENSUS_THRESHOLD = 1; # Only one person needs to work on a patch before it's accepted.
@@ -37,7 +38,7 @@ def get_work():
 	c = db.cursor();
 	c.execute("SELECT id, filename, x, y FROM work_pool WHERE submissions < {}".format(CONSENSUS_THRESHOLD));
 	patch_id, img_filename, x, y = c.fetchone();
-	img_data = Image.open(img_filename);
+	img_data = Image.open(os.path.join(BASE_PATH, img_filename));
 	crop_data = img_data.crop(box=(x, y, x+PATCH_SIZE[0], y+PATCH_SIZE[1]));
 	points = list();
 	for entry in c.execute("SELECT x, y, x_forward, y_forward FROM vehicles WHERE x > ? AND y > ? AND x < ? AND y < ? AND image=?", (x, y, x+PATCH_SIZE[0], y+PATCH_SIZE[1], img_filename)):
@@ -53,7 +54,7 @@ def submit_result():
 	data = json.loads(request.form['json']);
 	db = get_db();
 	cursor = db.cursor();
-	cursor.execute("UPDATE work_pool SET submissions = submissions+1 WHERE id=?", (data['patch_id']));
+	cursor.execute("UPDATE work_pool SET submissions = submissions+1 WHERE id=?", (data['patch_id'], ));
 	# c.executemany('INSERT INTO vehicles (image, x, y) VALUES (?,?,?)', data)
 	for point in data['points']:
 		cursor.execute('INSERT INTO vehicles (image, x, y, x_forward, y_forward) VALUES (?, ?, ?, ?, ?)', 
