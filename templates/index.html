@@ -154,11 +154,7 @@
 				makeRequest('get_work', 'GET', null, updateData, defaultErrorPopup);
 			}; // Get a new image if this posts.
 			var onFailure = function(msg) { alert("Unable to push current data to server.  Please wait a moment and try again.  Error data: " + msg); };
-			if(pointList.length > 0) { // Submit the data we have.
-				makeRequest('submit_result', 'POST', {"filename":imgName, 'patch_id':patchId, 'x_offset':xOffset, 'y_offset':yOffset, 'points':pointList}, onSuccess, onFailure);
-			} else { // Just get new data and assume the submit was successful.
-				onSuccess("SUCCESS");
-			}
+			makeRequest('submit_result', 'POST', {"filename":imgName, 'patch_id':patchId, 'x_offset':xOffset, 'y_offset':yOffset, 'points':pointList}, onSuccess, onFailure);
 		}
 		
 		function redraw() {
