@@ -27,6 +27,7 @@
 		var img = null;
 		var xOffset = 0;
 		var yOffset = 0;
+		var patchId = 0;
 		var imgName = "";
 		var editorMode = "SELECT";
 		var currentPoint = -1;
@@ -132,6 +133,7 @@
 			json = JSON.parse(responseText);
 			xOffset = json['offset_x'];
 			yOffset = json['offset_y'];
+			patchId = json['patch_id'];
 			imgName = json['filename'];
 			pointList = json['points'];
 			
@@ -153,7 +155,7 @@
 			}; // Get a new image if this posts.
 			var onFailure = function(msg) { alert("Unable to push current data to server.  Please wait a moment and try again.  Error data: " + msg); };
 			if(pointList.length > 0) { // Submit the data we have.
-				makeRequest('submit_result', 'POST', {"filename":imgName, 'x_offset':xOffset, 'y_offset':yOffset, 'points':pointList}, onSuccess, onFailure);
+				makeRequest('submit_result', 'POST', {"filename":imgName, 'patch_id':patchId, 'x_offset':xOffset, 'y_offset':yOffset, 'points':pointList}, onSuccess, onFailure);
 			} else { // Just get new data and assume the submit was successful.
 				onSuccess("SUCCESS");
 			}

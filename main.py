@@ -14,9 +14,8 @@ from flask import Flask, request, g, render_template, Response
 app = Flask(__name__);
 PATCH_SIZE = (128,128);
 DB_NAME = 'vehicles.db';
-# Connection and image set are migrated to the lobal store 'g'.
-#connection = sqlite3.connect('vehicles.db');
-#image_set = list();
+CONSENSUS_THRESHOLD = 1; # Only one person needs to work on a patch before it's accepted.
+# Connection and image set are migrated to the lobal store 'g'.  Should do the same with `image_set = list();`
 
 # Routes
 @app.route("/")
@@ -36,17 +35,16 @@ def get_work():
 	#	img_data = g.images[img_filename];
 	db = get_db();
 	c = db.cursor();
-	img_filename = choice(glob(sys.argv[1]));
+	c.execute("SELECT id, filename, x, y FROM work_pool WHERE submissions < {}".format(CONSENSUS_THRESHOLD));
+	patch_id, img_filename, x, y = c.fetchone();
 	img_data = Image.open(img_filename);
-	x = randint(0, img_data.size[0]-PATCH_SIZE[0]);
-	y = randint(0, img_data.size[1]-PATCH_SIZE[1]);
 	crop_data = img_data.crop(box=(x, y, x+PATCH_SIZE[0], y+PATCH_SIZE[1]));
 	points = list();
 	for entry in c.execute("SELECT x, y, x_forward, y_forward FROM vehicles WHERE x > ? AND y > ? AND x < ? AND y < ? AND image=?", (x, y, x+PATCH_SIZE[0], y+PATCH_SIZE[1], img_filename)):
 		transform = {'x': (entry[0]-x)/PATCH_SIZE[0], 'y': (entry[1]-y)/PATCH_SIZE[1]};
 		forward = {'x': (entry[2]-x)/PATCH_SIZE[0], 'y': (entry[3]-y)/PATCH_SIZE[1]};
 		points.append({'transform':transform, 'forward':forward});
-	content = {'filename':img_filename, 'offset_x':x, 'offset_y':y, 'data':encode_img_as_base64_png(crop_data), 'points':points};
+	content = {'filename':img_filename, 'offset_x':x, 'offset_y':y, 'patch_id':patch_id, 'data':encode_img_as_base64_png(crop_data), 'points':points};
 	c.close();
 	return Response(json.dumps(content), mimetype="application/json");
 
@@ -55,6 +53,7 @@ def submit_result():
 	data = json.loads(request.form['json']);
 	db = get_db();
 	cursor = db.cursor();
+	cursor.execute("UPDATE work_pool SET submissions = submissions+1 WHERE id=?", (data['patch_id']));
 	# c.executemany('INSERT INTO vehicles (image, x, y) VALUES (?,?,?)', data)
 	for point in data['points']:
 		cursor.execute('INSERT INTO vehicles (image, x, y, x_forward, y_forward) VALUES (?, ?, ?, ?, ?)', 
@@ -73,6 +72,7 @@ def init_db():
 	connection = sqlite3.connect(DB_NAME);
 	connection.row_factory = sqlite3.Row;
 	c = connection.cursor();
+	c.execute("CREATE TABLE work_pool (id INTEGER PRIMARY KEY, filename TEXT, x NUMERIC, y NUMERIC, submissions NUMERIC)");
 	c.execute("CREATE TABLE vehicles (id INTEGER PRIMARY KEY, image TEXT, x NUMERIC, y NUMERIC, x_forward NUMERIC, y_forward NUMERIC, submitter TEXT)");
 	# db = get_db();
 	# with app.open_resource('schema.sql', more='r') as f:
