@@ -12,6 +12,7 @@ from flask import Flask, request, g, render_template, Response
 
 # Globals
 app = Flask(__name__);
+IMAGE_CACHE = dict();
 BASE_PATH = sys.argv[1];
 PATCH_SIZE = (128,128);
 DB_NAME = 'vehicles.db';
@@ -28,17 +29,15 @@ def index():
 @app.route("/get_work") #, methods=['GET'])
 def get_work():
 	# Select an image from our images at random.
-	# TODO: FIX THIS CACHING CODE
-	#img_filename = choice(g.image_filenames);
-	#img_data = None
-	#if img_filename not in g.images: # Have we loaded this picture already?
-	#	g.images[img_filename] = Image.open(img_filename);
-	#	img_data = g.images[img_filename];
+	global IMAGE_CACHE
 	db = get_db();
 	c = db.cursor();
 	c.execute("SELECT id, filename, x, y FROM work_pool WHERE submissions < {}".format(CONSENSUS_THRESHOLD));
 	patch_id, img_filename, x, y = c.fetchone();
-	img_data = Image.open(os.path.join(BASE_PATH, img_filename));
+	if img_filename not in IMAGE_CACHE: # Have we loaded this picture already?
+		print("Loading image {} into cache.".format(img_filename));
+		IMAGE_CACHE[img_filename] = Image.open(os.path.join(BASE_PATH, img_filename));
+	img_data = IMAGE_CACHE[img_filename];
 	crop_data = img_data.crop(box=(x, y, x+PATCH_SIZE[0], y+PATCH_SIZE[1]));
 	points = list();
 	for entry in c.execute("SELECT x, y, x_forward, y_forward FROM vehicles WHERE x > ? AND y > ? AND x < ? AND y < ? AND image=?", (x, y, x+PATCH_SIZE[0], y+PATCH_SIZE[1], img_filename)):
