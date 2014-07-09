@@ -5,7 +5,7 @@
 	<div>
 		<canvas id="mainCanvas" width="512", height="512"></canvas> <!-- Note, we're upscaling canvas by 4x. -->
 	</div>
-	</div>
+	<div>
 		<button id="newPatch">Get Patch</button>
 		<button id="selectTool">Selection Tool</button>
 		<button id="createTool">Create Tool</button>
@@ -38,6 +38,23 @@
 		document.getElementById("createTool").onclick = function() { editorMode = "CREATE"; };
 		document.getElementById("moveTool").onclick = function() { editorMode = "MOVE"; };
 		document.getElementById("forwardTool").onclick = function() { editorMode = "FORWARD"; };
+
+		window.onkeyup = function(evt) {
+			var key = evt.keyCode;
+			console.log(key);
+
+			if(key == 81) { // Q
+				document.getElementById("selectTool").onclick();
+			} else if(key == 87) {// W
+				document.getElementById("createTool").onclick();
+			} else if(key == 69) {// E
+				document.getElementById("moveTool").onclick();
+			} else if(key == 82) {// R
+				document.getElementById("forwardTool").onclick();
+			} else if(key == 32) {// Space
+				document.getElementById("newPatch").onclick();
+			}
+		}
 		
 		canvasElement.onmouseup = function(evt) {
 			var coord = canvasElement.relMouseCoords(event);
