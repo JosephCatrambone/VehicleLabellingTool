@@ -15,7 +15,8 @@ from PIL import Image
 if __name__=="__main__":
 	# Create the database
 	csv_file = sys.argv[1];
-	db = sqlite3.connect(sys.argv[2]);
+	img_base_path = sys.argv[2];
+	db = sqlite3.connect(sys.argv[3]);
 	db.row_factory = sqlite3.Row;
 
 	# Insert all vehicles
@@ -29,28 +30,32 @@ if __name__=="__main__":
 		frame_number = row['FRAME_NUMBER'];
 		image_file = "{0}-01000{1:03d}-VIS.ntf.r1.img0_jpg8m.raw.jpg".format(timestamp.strftime('%Y%m%d%H%M%S'), int(frame_number));
 		image_filenames.add(image_file);
-		cursor.execute('INSERT INTO vehicles (image, x, y, x_forward, y_forward) VALUES (?, ?, ?)', (image_file, row['X'], row['Y'], row['X'], row['Y']));
+		cursor.execute('INSERT INTO vehicles (image, x, y, x_forward, y_forward) VALUES (?, ?, ?, ?, ?)', (image_file, row['X'], row['Y'], row['X'], row['Y']));
 		print("Inserted ({}, {}, {}) into vehicles.".format(image_file, row['X'], row['Y']));
         db.commit();
 
 	# Create the regions of interest
 	REGION_SIZE = 128;
-	cursor.execute("CREATE TABLE regions (id INTEGER PRIMARY KEY, image TEXT, x NUMERIC, y NUMERIC, width NUMERIC, height NUMERIC, visits NUMERIC)");
+	cursor.execute("CREATE TABLE work_pool (id INTEGER PRIMARY KEY, filename TEXT, x NUMERIC, y NUMERIC, submissions NUMERIC)");
 	for image_name in image_filenames:
-		img = Image.open(image_name);
-		number_of_channels = len(img.getbands());
-		for y in range(0, img.size[1]):
-			for x in range(0, img.size[0]):
-				# Make sure there's interesting information in this patch.
-				extrema = img.getextrema();
-				if number_of_channels == 1:
-					if extrema[0] == extrema[1]:
-						continue;
-				elif number_of_channels == 3:
-					if extrema[0][0] == extrema[0][1] and extrema[1][0] == extrema[1][1] and extrema[2][0] == extrema[2][1]:
-						continue;
-				# This patch is interesting.  Add it.	
-				cursor.execute('INSERT INTO regions (image, x, y, width, height, visits) VALUES (?, ?, ?, ?, ?, ?)', (image_name, x, y, REGION_SIZE, REGION_SIZE, 0));
+		try:
+			img = Image.open(os.path.join(img_base_path, image_name));
+			number_of_channels = len(img.getbands());
+			for y in range(0, img.size[1], 32):
+				for x in range(0, img.size[0], 32):
+					# Make sure there's interesting information in this patch.
+					extrema = img.crop((x, y, x+REGION_SIZE, y+REGION_SIZE)).getextrema();
+					if number_of_channels == 1:
+						if extrema[0] == extrema[1]:
+							continue;
+					elif number_of_channels == 3:
+						if extrema[0][0] == extrema[0][1] and extrema[1][0] == extrema[1][1] and extrema[2][0] == extrema[2][1]:
+							continue;
+					# This patch is interesting.  Add it.	
+					cursor.execute('INSERT INTO work_pool (filename, x, y, submissions) VALUES (?, ?, ?, ?)', (image_name, x, y, 0));
+					print('INSERT INTO work_pool (filename, x, y, submissions) VALUES ({}, {}, {}, {})'.format(image_name, x, y, 0));
+		except Exception as e:
+			print("Exception.  Skipping: {}".format(image_name));
 	db.commit();
 
 	# Wrap up
