@@ -40,10 +40,11 @@ def get_work():
 	img_data = IMAGE_CACHE[img_filename];
 	crop_data = img_data.crop(box=(x, y, x+PATCH_SIZE[0], y+PATCH_SIZE[1]));
 	points = list();
-	for entry in c.execute("SELECT x, y, x_forward, y_forward FROM vehicles WHERE x > ? AND y > ? AND x < ? AND y < ? AND image=?", (x, y, x+PATCH_SIZE[0], y+PATCH_SIZE[1], img_filename)):
-		transform = {'x': (entry[0]-x)/PATCH_SIZE[0], 'y': (entry[1]-y)/PATCH_SIZE[1]};
-		forward = {'x': (entry[2]-x)/PATCH_SIZE[0], 'y': (entry[3]-y)/PATCH_SIZE[1]};
-		points.append({'transform':transform, 'forward':forward});
+	for entry in c.execute("SELECT id, x, y, x_forward, y_forward FROM vehicles WHERE x > ? AND y > ? AND x < ? AND y < ? AND image=?", (x, y, x+PATCH_SIZE[0], y+PATCH_SIZE[1], img_filename)):
+		id = entry[0];
+		transform = {'x': (entry[1]-x)/PATCH_SIZE[0], 'y': (entry[2]-y)/PATCH_SIZE[1]};
+		forward = {'x': (entry[3]-x)/PATCH_SIZE[0], 'y': (entry[4]-y)/PATCH_SIZE[1]};
+		points.append({'id':id, 'transform':transform, 'forward':forward});
 	content = {'filename':img_filename, 'offset_x':x, 'offset_y':y, 'patch_id':patch_id, 'data':encode_img_as_base64_png(crop_data), 'points':points};
 	c.close();
 	return Response(json.dumps(content), mimetype="application/json");
@@ -56,13 +57,24 @@ def submit_result():
 	cursor.execute("UPDATE work_pool SET submissions = submissions+1 WHERE id=?", (data['patch_id'], ));
 	# c.executemany('INSERT INTO vehicles (image, x, y) VALUES (?,?,?)', data)
 	for point in data['points']:
-		cursor.execute('INSERT INTO vehicles (image, x, y, x_forward, y_forward) VALUES (?, ?, ?, ?, ?)', 
-			(data['filename'], 
-			data['x_offset']+(PATCH_SIZE[0]*point['transform']['x']), 
-			data['y_offset']+(PATCH_SIZE[1]*point['transform']['y']), 
-			data['x_offset']+(PATCH_SIZE[0]*point['forward']['x']), 
-			data['y_offset']+(PATCH_SIZE[1]*point['forward']['y']),)
-		);
+		if not point.get('id', None) or point.get('id') == 0:
+			print("DEBUG: Creating new point: {} {} {}".format(data['filename'], data['x_offset'], data['y_offset']));
+			cursor.execute('INSERT INTO vehicles (image, x, y, x_forward, y_forward) VALUES (?, ?, ?, ?, ?)', 
+				(data['filename'], 
+				data['x_offset']+(PATCH_SIZE[0]*point['transform']['x']), 
+				data['y_offset']+(PATCH_SIZE[1]*point['transform']['y']), 
+				data['x_offset']+(PATCH_SIZE[0]*point['forward']['x']), 
+				data['y_offset']+(PATCH_SIZE[1]*point['forward']['y']),)
+			);
+		else:
+			print("DEBUG: UPDATE point: {}".format(point['id']));
+			cursor.execute('UPDATE vehicles SET x=?, y=?, x_forward=?, y_forward=? WHERE id=?', ( 
+				data['x_offset']+(PATCH_SIZE[0]*point['transform']['x']),
+				data['y_offset']+(PATCH_SIZE[1]*point['transform']['y']),
+				data['x_offset']+(PATCH_SIZE[0]*point['forward']['x']),
+				data['y_offset']+(PATCH_SIZE[1]*point['forward']['y']),
+				point['id']
+			));
 	db.commit();
 	cursor.close();
 	return Response(json.dumps({'status':'okay'}), mimetype="application/json");
