@@ -88,7 +88,7 @@
 				// Distance to the point
 				var dx = mouseX-pointList[i].transform.x;
 				var dy = mouseY-pointList[i].transform.y;
-				if(!normalOnly) {
+				if(!selectNormalOnly) {
 					var dist = dx*dx+dy*dy;
 					if(dist < nearestDistance) {
 						nearestPoint = i;
@@ -106,7 +106,7 @@
 					normalSelected = true;
 				}
 			}
-			if(nearestDistance < MAX_SELECTION_DISTANCE || normalOnly) { // We're within the required distance.
+			if(nearestDistance < MAX_SELECTION_DISTANCE || selectNormalOnly) { // We're within the required distance.
 				currentPoint = nearestPoint;
 			} else { // We clicked too far.  Create a new point.
 				var newPoint = {'transform':{'x':coord.x/canvasElement.width, 'y':coord.y/canvasElement.height}, 'forward':{'x':(coord.x+1)/canvasElement.width, 'y':(coord.y+1)/canvasElement.height}};
