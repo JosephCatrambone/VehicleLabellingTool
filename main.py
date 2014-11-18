@@ -36,8 +36,15 @@ def get_work():
 	patch_id, img_filename, x, y = c.fetchone();
 	if img_filename not in IMAGE_CACHE: # Have we loaded this picture already?
 		print("Loading image {} into cache.".format(img_filename));
-		IMAGE_CACHE[img_filename] = Image.open(os.path.join(BASE_PATH, img_filename));
+		try:
+			IMAGE_CACHE[img_filename] = Image.open(os.path.join(BASE_PATH, img_filename));
+		except IOError as ioe: # Image file doesn't exist.
+			c.execute("UPDATE work_pool SET submissions = 12345 WHERE id=?", (patch_id,));
+			c.close();
+			return get_work(); # This is a really gross hack to deal with invalid data in the database. It might cause a stack overflow if we keep getting bad data.
+	# Open the images and add them to our cache
 	img_data = IMAGE_CACHE[img_filename];
+	# Crop a segment and select the points in the area
 	crop_data = img_data.crop(box=(x, y, x+PATCH_SIZE[0], y+PATCH_SIZE[1]));
 	points = list();
 	for entry in c.execute("SELECT id, x, y, x_forward, y_forward FROM vehicles WHERE x > ? AND y > ? AND x < ? AND y < ? AND image=?", (x, y, x+PATCH_SIZE[0], y+PATCH_SIZE[1], img_filename)):
@@ -47,6 +54,12 @@ def get_work():
 		points.append({'id':id, 'transform':transform, 'forward':forward});
 	content = {'filename':img_filename, 'offset_x':x, 'offset_y':y, 'patch_id':patch_id, 'data':encode_img_as_base64_png(crop_data), 'points':points};
 	c.close();
+	# Log the outbound data in case we ever need to trace an issue.  Remove the 'data' field, though.
+	log_info = dict();
+	log_info.update(content);
+	del log_info['data'];
+	g.log_file.write("SEND: {}\n".format(json.dumps(log_info)));
+	# Convert to JSON and return to user.
 	return Response(json.dumps(content), mimetype="application/json");
 
 @app.route("/submit_result", methods=['POST'])
@@ -55,6 +68,7 @@ def submit_result():
 	db = get_db();
 	cursor = db.cursor();
 	cursor.execute("UPDATE work_pool SET submissions = submissions+1 WHERE id=?", (data['patch_id'], ));
+	g.log_file.write("RECV: {}\n".format(request.form['json']));
 	# c.executemany('INSERT INTO vehicles (image, x, y) VALUES (?,?,?)', data)
 	for point in data['points']:
 		if not point.get('id', None) or point.get('id') == 0:
@@ -97,12 +111,16 @@ def get_db():
 	if not hasattr(g, 'db_connection'):
 		g.db_connection = sqlite3.connect(DB_NAME);
 		g.db_connection.row_factory = sqlite3.Row; # Not necessary, but makes it easier later on.
+	if not hasattr(g, 'log_file'):
+		g.log_file = open("connection.json", 'a');
 	return g.db_connection;
 
 @app.teardown_appcontext
 def close_db(error):
 	if hasattr(g, 'db_connection'):
 		g.db_connection.close();
+	if hasattr(g, 'log_file'):
+		g.log_file.close();
 
 # Helper functions
 def encode_img_as_base64_png(img):
